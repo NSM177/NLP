@@ -47,10 +47,10 @@ def preprocess_text(text: str) -> str:
     text = text.lower()
     text = re.sub(r"http\S+|www\S+|https\S+", "", text, flags=re.MULTILINE)
     text = re.sub(r"@\w+", "", text)
-    text = re.sub(r"[^\w\s#]", " ", text)
+    # FIX FOR VIETNAMESE: Giữ Unicode diacritics, loại bỏ dấu câu
+    text = re.sub(r"[^\w\s#\u0300-\u036F]", " ", text, flags=re.UNICODE)
     text = " ".join(text.split())
     return text
-
 
 def clean_query(text: str) -> str:
     """
@@ -63,10 +63,10 @@ def clean_query(text: str) -> str:
     4. Trả về kết quả (str).
     """
     text = unicodedata.normalize("NFKC", text)
-    text = re.sub(r"[^\w\s]", " ", text)
+    # FIX FOR VIETNAMESE: Giữ Unicode diacritics, loại bỏ dấu câu
+    text = re.sub(r"[^\w\s\u0300-\u036F]", " ", text, flags=re.UNICODE)
     text = re.sub(r"\s+", " ", text).strip()
     return text
-
 
 def truncate_text(text: str, max_length: int = 50) -> str:
     """

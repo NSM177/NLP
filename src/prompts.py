@@ -1,49 +1,48 @@
-"""
-Prompt builders for MRCD Framework.
+"""Prompt builders for MRCD Framework (Vietnamese Language Support).
 
 Two classification prompt variants:
-- wiki_only: chỉ dùng K_wiki (entity definitions)
-- full: dùng K_wiki + K_fact (verified reports)
+- wiki_only: chỉ dùng K_wiki (định nghĩa thực thể)
+- full: dùng K_wiki + K_fact (các báo cáo đã xác minh)
 
-LLM chỉ trả về "Real" hoặc "Fake" (không dùng synonym list).
+LLM chỉ trả về "Real" hoặc "Fake".
 """
 
 
 def build_dual_extraction_prompt(text: str) -> str:
     """
-    Xây dựng prompt để thực hiện đồng thời việc trích xuất thực thể (entities) và tạo truy vấn tìm kiếm trung lập (neutral query).
+    Xây dựng prompt để trích xuất thực thể và tạo truy vấn tìm kiếm (tiếng Việt).
     """
     prompt = (
-        "You are an expert Fact-Checking Extraction Agent. Your task is to process a raw news text "
-        "and generate two outputs simultaneously for a Two-Stage Retrieval System.\n\n"
-        "TASK 1: WIKI ENTITIES (For Knowledge Retrieval)\n"
-        "Extract 1 to 4 core named entities (People, Organizations, Locations, Events) from the text "
-        "that are crucial for verifying the claim and are highly likely to have a Wikipedia page.\n\n"
-        "TASK 2: NEUTRAL QUERY (For Fact-Check Search)\n"
-        "Generate a single, concise search query to retrieve factual articles. "
-        "STRICT RULES: Focus ONLY on factual core subjects. REMOVE all clickbait, sensational, "
-        "or emotional words (e.g., 'breaking', 'urgent', 'cure', 'secret'). "
-        "DO NOT use quotation marks (\"\") or any search operators.\n\n"
-        "OUTPUT FORMAT:\n"
-        "Return ONLY a valid JSON object. Do NOT wrap in markdown tags (like ```json), no preamble, no explanations.\n"
-        'Schema: {"entities": ["entity_1", "entity_2"], "query": "query"}\n\n'
-        f"Input text: {text}"
+        "Bạn là chuyên gia Trích xuất Kiểm chứng Sự kiện. Nhiệm vụ của bạn là xử lý văn bản tin tức thô "
+        "và tạo ra hai kết quả đồng thời cho Hệ thống Truy xuất hai giai đoạn.\n\n"
+        "NHIỆM VỤ 1: CÁC THỰC THỂ WIKIPEDIA (Để Truy xuất Kiến thức)\n"
+        "Trích xuất 1 đến 4 thực thể được đặt tên chính (Người, Tổ chức, Địa điểm, Sự kiện) từ văn bản "
+        "những cái quan trọng để xác minh tuyên bố và có khả năng cao có trang Wikipedia.\n\n"
+        "NHIỆM VỤ 2: TRY VẤN TRUNG LẬP (Để Tìm kiếm Bài viết Kiểm chứng Sự kiện)\n"
+        "Tạo một truy vấn tìm kiếm duy nhất, ngắn gọn để truy xuất các bài viết thực tế. "
+        "QUY TẮC CỨNG: Chỉ tập trung vào các chủ đề thực tế cốt lõi. LOẠI BỎ tất cả các từ clickbait, hoa mỹ, "
+        "hoặc cảm xúc (ví dụ: 'nóng hổi', 'khẩn cấp', 'chữa được', 'bí mật'). "
+        "KHÔNG sử dụng dấu ngoặc kép (\"\") hoặc bất kỳ toán tử tìm kiếm nào.\n\n"
+        "ĐỊNH DẠNG ĐẦU RA:\n"
+        "Chỉ trả về một đối tượng JSON hợp lệ. KHÔNG bao bọc trong các thẻ markdown (như ```json), không mở đầu, không giải thích.\n"
+        'Lược đồ: {"entities": ["entity_1", "entity_2"], "query": "query"}\n\n'
+        f"Văn bản đầu vào: {text}"
     )
     return prompt
 
 def build_entity_extraction_prompt(text: str) -> str:
     """
-    Xây dựng prompt CHỈ trích xuất thực thể (phục vụ chế độ wiki_only giúp tiết kiệm token).
+    Xây dựng prompt CHỈ trích xuất thực thể cho chế độ wiki_only (tiếng Việt).
     """
     prompt = (
-        "You are an expert Fact-Checking Extraction Agent.\n\n"
-        "TASK: WIKI ENTITIES (For Knowledge Retrieval)\n"
-        "Extract 1 to 4 core named entities (People, Organizations, Locations, Events) from the text "
-        "that are crucial for verifying the claim and are highly likely to have a Wikipedia page.\n\n"
-        "OUTPUT FORMAT:\n"
-        "Return ONLY a valid JSON object. Do NOT wrap in markdown tags (like ```json), no preamble, no explanations.\n"
-        'Schema: {"entities": ["entity_1", "entity_2"]}\n\n'
-        f"Input text: {text}"
+        "Bạn là chuyên gia Trích xuất Kiểm chứng Sự kiện.\n\n"
+        "NHIỆM VỤ: CÁC THỰC THỂ WIKIPEDIA (Để Truy xuất Kiến thức)\n"
+        "Trích xuất 1 đến 4 thực thể được đặt tên chính (Người, Tổ chức, Địa điểm, Sự kiện) từ văn bản "
+        "những cái quan trọng để xác minh tuyên bố và có khả năng cao có trang Wikipedia.\n\n"
+        "ĐỊNH DẠNG ĐẦU RA:\n"
+        "Chỉ trả về một đối tượng JSON hợp lệ. KHÔNG bao bọc trong các thẻ markdown (như ```json), không mở đầu, không giải thích.\n"
+        'Lược đồ: {"entities": ["entity_1", "entity_2"]}\n\n'
+        f"Văn bản đầu vào: {text}"
     )
     return prompt
 
@@ -54,24 +53,24 @@ def build_classification_prompt(
     demos: list,
 ) -> str:
     """
-    Xây dựng prompt phân loại chung. Nội dung tri thức đã được xử lý bên ngoài.
+    Xây dựng prompt phân loại bằng tiếng Việt.
     """
     # 1. HEADER
-    header = f"""You are an advanced AI fake news detector.
+    header = f"""Bạn là chuyên gia phát hiện tin giả nâng cao.
 
-BACKGROUND KNOWLEDGE:
+NỀN TẢNG THÔNG TIN:
 {knowledge_k}
 
-INSTRUCTIONS:
-Classify the following news article as either Real or Fake.
-- "Real" means the article is factually accurate and trustworthy.
-- "Fake" means the article is fabricated, misleading, or unverified.
+HƯỚNG DẪN:
+Phân loại bài viết tin tức dưới đây là Thật (Real) hoặc Giả (Fake).
+- "Real" nghĩa là bài viết chính xác về sự kiện và đáng tin cậy.
+- "Fake" nghĩa là bài viết giả mạo, gây hiểu lầm, hoặc chưa được xác minh.
 
-STRICT RULE: Only output ONE word: "Real" or "Fake". 
-No preamble, no explanation, no punctuation.
-Just the word.
+QUY TẮC CỨNG: Chỉ viết MỘT từ: "Real" hoặc "Fake". 
+Không có giải thích, không có dấu câu.
+Chỉ viết từ đó.
 
-EXAMPLES:"""
+VÍ DỤ:"""
 
     # 2. FEW-SHOT DEMOS
     examples = _build_demo_section(demos)
@@ -79,32 +78,30 @@ EXAMPLES:"""
     # 3. TAIL & TARGET
     tail = f"""
 ----------------------------------------
-TARGET ARTICLE TO CLASSIFY:
-Text: "{text.strip()}"
+BÀI VIẾT CẦN PHÂN LOẠI:
+Nội dung: "{text.strip()}"
 
-Label:"""
+Kết luận:"""
 
     return header + examples + tail
 
 
 def _build_demo_section(demos: list) -> str:
     """
-    Xây dựng phần danh sách các ví dụ few-shot cho prompt.
-    
-     
+    Xây dựng phần danh sách các ví dụ few-shot cho prompt (tiếng Việt).\n    
     1. Kiểm tra nếu danh sách demos trống, trả về thông báo rỗng.
     2. Lặp qua danh sách demos (bắt đầu từ index 1).
     3. Với mỗi demo:
        - Lấy nhãn (label) và nội dung văn bản (giới hạn 1000 ký tự đầu).
-       - Định dạng theo cấu trúc: [Example n], Text: "...", Label: ...
+       - Định dạng theo cấu trúc: [Ví dụ n], Nội dung: "...", Kết luận: ...
     4. Ghép tất cả các ví dụ thành một chuỗi duy nhất và trả về.
     """
     if not demos:
-        return "\n(No examples provided)\n"
+        return "\n(Không có ví dụ)\n"
 
     examples = ""
     for i, demo in enumerate(demos, start=1):
-        label_str = demo.get("label", "Unknown")
+        label_str = demo.get("label", "Chưa xác định")
         text_demo = demo.get("text", "")[:1000].strip()
-        examples += f'\n[Example {i}]\nText: "{text_demo}..."\nLabel: {label_str}\n'
+        examples += f'\n[Ví dụ {i}]\nNội dung: "{text_demo}..."\nKết luận: {label_str}\n'
     return examples

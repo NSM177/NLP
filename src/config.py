@@ -16,15 +16,15 @@ except ImportError:
     pass  # dotenv not installed, rely on system env vars
 
 # ============================================================
-# Data Paths
+# Data Paths (Vietnamese Dataset)
 # ============================================================
 DATA_DIR = os.environ.get(
     "MRCD_DATA_DIR",
-    r"/kaggle/input/datasets/chinhde/twitter15-16",
+    r"../crawl_exports",  # Vietnamese news dataset
 )
-TRAIN_CSV = os.path.join(DATA_DIR, "train.csv")
-VAL_CSV = os.path.join(DATA_DIR, "val.csv")
-TEST_CSV = os.path.join(DATA_DIR, "test.csv")
+TRAIN_CSV = os.path.join(DATA_DIR, "data_true_train.csv")
+VAL_CSV = os.path.join(DATA_DIR, "data_true_val.csv")
+TEST_CSV = os.path.join(DATA_DIR, "data_true_test.csv")
 
 # SLM model path (pre-trained checkpoint)
 MODEL_PATH = os.environ.get(
@@ -33,11 +33,11 @@ MODEL_PATH = os.environ.get(
 )
 
 # ============================================================
-# LLM Configuration
+# LLM Configuration (Vietnamese-friendly model)
 # ============================================================
 LLM_MODEL_NAME = os.environ.get(
     "LLM_MODEL_NAME",
-    "meta-llama/Meta-Llama-3-8B-Instruct",
+    "Qwen/Qwen1.5-7B-Chat",  # Better support for Vietnamese than Llama 3
 )
 LLM_MAX_NEW_TOKENS = 128
 LLM_MAX_OUTPUT_TOKENS_EXTRACTION = 96
@@ -68,7 +68,7 @@ BOOTSTRAP_MAX_WORKERS = min(16, max(4, (os.cpu_count() or 4) * 2))
 CRAWL_MAX_WORKERS = min(8, max(2, (os.cpu_count() or 4)))
 
 # ============================================================
-# SLM Fine-tune Configuration
+# SLM Fine-tune Configuration (optimized for PhoBERT)
 # ============================================================
 ENABLE_SLM_FINETUNE = True
 SLM_FINETUNE_EPOCHS = 1
@@ -76,6 +76,8 @@ SLM_FINETUNE_BATCH_SIZE = 32
 SLM_FINETUNE_LR = 1e-5
 SLM_FINETUNE_WEIGHT_DECAY = 0.01
 SLM_FINETUNE_MIN_SAMPLES = 16
+# Vietnamese text needs longer sequences due to morphological complexity
+SLM_MAX_SEQ_LENGTH = 256  # Increased from 128 for better Vietnamese text handling
 
 # ============================================================
 # Knowledge Retrieval Mode
@@ -94,6 +96,16 @@ WIKI_FETCH_FULL = os.environ.get("MRCD_WIKI_FETCH_FULL", "false").lower() == "tr
 AG_NEWS_URL = "https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/data/ag_news_csv/train.csv"
 
 TRUST_DOMAINS = [
+    # Vietnamese news sources
+    "tuoitree.vn",
+    "thanhnien.vn",
+    "vnexpress.net",
+    "dantri.com.vn",
+    "vov.vn",
+    "vietnamnet.vn",
+    "vietq.vn",
+    "baomoi.com",
+    # International sources
     "apnews.com",
     "reuters.com",
     "afp.com",
@@ -102,10 +114,6 @@ TRUST_DOMAINS = [
     "fullfact.org",
     "who.int",
     "cdc.gov",
-    "npr.org",
-    "pbs.org",
-    "theguardian.com",
-    "theconversation.com",
 ]
 
 # ============================================================

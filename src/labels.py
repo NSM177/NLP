@@ -17,21 +17,21 @@ LLM_LABEL_REAL = "Real"
 LLM_LABEL_FAKE = "Fake"
 
 # ============================================================
-# Synonym Labels (CHỈ dùng cho gán nhãn giả demo)
+# Synonym Labels (Vietnamese - CHỈ dùng cho gán nhãn giả demo)
 # Không đưa vào prompt LLM classification
 # ============================================================
 REAL_SYNONYM_LABELS = [
-    "Authentic", "Reliable", "True", "Genuine", "Credible",
-    "Fact-based", "Verified", "Accurate", "Trustworthy", "Factual",
-    "Legitimate", "Proven", "Substantiated", "Valid", "Confirmed",
-    "Authoritative", "Honest", "Objective",
+    "Xác thực", "Đáng tin", "Chính xác", "Kiểm chứng",
+    "Hợp pháp", "Thực tế", "Đúng sự kiện", "Tin cậy",
+    "Có cơ sở", "Xác nhận", "Hợp lệ", "Trung thực",
+    "Chân thực", "Hợp tác", "Minh bạch",
 ]
 
 FAKE_SYNONYM_LABELS = [
-    "Hoax", "False", "Fabricated", "Untrue", "Misleading",
-    "Bogus", "Inaccurate", "Dubious", "Deceptive", "Unverified",
-    "Rumor", "Satire", "Propaganda", "Manipulated", "Distorted",
-    "Baseless", "Phony", "Clickbait", "Disinformation", "Misinformation",
+    "Giả mạo", "Sai sự thật", "Gây hiểu lầm", "Không kiểm chứng",
+    "Tin đồn", "Tuyên truyền", "Thao túng", "Sai lệch",
+    "Không xác thực", "Lừa dối", "Cứu tinh sai", "Clickbait",
+    "Thông tin sai lạc", "Luyên thuyên", "Nhân tạo",
 ]
 
 ALL_SYNONYM_LABELS = REAL_SYNONYM_LABELS + FAKE_SYNONYM_LABELS

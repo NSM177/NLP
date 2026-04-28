@@ -15,14 +15,14 @@ from src.utils import preprocess_text
 class FakeNewsDataset(Dataset):
     """PyTorch Dataset for fake news classification with RoBERTa tokenizer."""
 
-    def __init__(self, texts, labels, tokenizer, max_len=128):
+    def __init__(self, texts, labels, tokenizer, max_len=256):
         """
-        Khởi tạo tập dữ liệu FakeNewsDataset.
+        Khởi tạo tập dữ liệu FakeNewsDataset cho PhoBERT.
         
          
         1. Gán danh sách văn bản (texts) và nhãn (labels).
-        2. Gán bộ mã hóa (tokenizer) của RoBERTa.
-        3. Thiết lập độ dài tối đa cho chuỗi token (max_len).
+        2. Gán bộ mã hóa (tokenizer) của AutoTokenizer (hỗ trợ PhoBERT).
+        3. Thiết lập độ dài tối đa cho chuỗi token (max_len=256 cho tiếng Việt).
         """
         self.texts = texts
         self.labels = labels
@@ -53,6 +53,7 @@ class FakeNewsDataset(Dataset):
             padding="max_length",
             truncation=True,
             return_tensors="pt",
+            add_special_tokens=True,
         )
         return {
             "input_ids": encoding["input_ids"].squeeze(),
@@ -101,10 +102,21 @@ def load_data_from_csv(
                     return [], []
             
             texts = [preprocess_text(t) for t in df[text_col].astype(str).tolist()]
-            labels = [
-                0 if label.lower() in ["true", "non-rumor"] else 1
-                for label in df["label"].astype(str).tolist()
-            ]
+            # Support Vietnamese dataset: 0 = Real/True, 1 = Fake
+            labels = []
+            for label in df["label"].astype(str).tolist():
+                label_str = str(label).strip().lower()
+                if label_str in ["0", "true", "real", "non-rumor", "xác thực", "thật"]:
+                    labels.append(0)
+                elif label_str in ["1", "false", "fake", "rumor", "giả mạo", "giả"]:
+                    labels.append(1)
+                else:
+                    # Fallback: assume numeric value
+                    try:
+                        labels.append(int(float(label_str)))
+                    except ValueError:
+                        print(f"Warning: Unknown label value: {label_str}, defaulting to 1 (Fake)")
+                        labels.append(1)
             print(f"Loaded {len(texts)} samples from {filepath}")
             return texts, labels
         except Exception as e:

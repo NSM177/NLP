@@ -14,8 +14,8 @@ import torch.nn.functional as F
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from transformers import (
-	RobertaForSequenceClassification,
-	RobertaTokenizer,
+	AutoModelForSequenceClassification,
+	AutoTokenizer,
 	get_linear_schedule_with_warmup,
 )
 
@@ -63,8 +63,8 @@ class IntegratedSLM:
 		print(f"SLM loaded (HF backend) on {self.device}")
 
 	def _load_roberta_components(self, model_path: str, eval_mode: bool = True):
-		tokenizer = RobertaTokenizer.from_pretrained(model_path)
-		model = RobertaForSequenceClassification.from_pretrained(
+		tokenizer = AutoTokenizer.from_pretrained(model_path)
+		model = AutoModelForSequenceClassification.from_pretrained(
 			model_path,
 			num_labels=2,
 		)
@@ -81,7 +81,7 @@ class IntegratedSLM:
 			clean_text,
 			return_tensors="pt",
 			truncation=True,
-			max_length=128,
+			max_length=256,
 			padding="max_length",
 		)
 		with torch.no_grad():
@@ -103,7 +103,7 @@ class IntegratedSLM:
 				batch_texts = clean_texts[i : i + batch_size]
 				inputs = self.tokenizer(
 					batch_texts,
-					max_length=128,
+					max_length=256,
 					padding=True,
 					truncation=True,
 					return_tensors="pt",
@@ -189,7 +189,7 @@ class IntegratedSLM:
 		texts = [preprocess_text(s["text"]) for s in valid_samples]
 		labels = [int(s["label"]) for s in valid_samples]
 
-		dataset = FakeNewsDataset(texts, labels, self.tokenizer, max_len=128)
+		dataset = FakeNewsDataset(texts, labels, self.tokenizer, max_len=256)
 		loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 		optimizer = AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -273,7 +273,7 @@ class IntegratedSLM:
 
 		self._freeze_backbone_train_head_only()
 
-		train_dataset = FakeNewsDataset(train_texts, train_labels, self.tokenizer, max_len=128)
+		train_dataset = FakeNewsDataset(train_texts, train_labels, self.tokenizer, max_len=256)
 		train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 		total_steps = len(train_loader) * epochs
