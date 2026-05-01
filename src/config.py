@@ -37,7 +37,7 @@ MODEL_PATH = os.environ.get(
 # ============================================================
 LLM_MODEL_NAME = os.environ.get(
     "LLM_MODEL_NAME",
-    "Qwen/Qwen2-1.5B-Instruct",  # Better support for Vietnamese than Llama 3
+    "Qwen/Qwen1.5-7B-Chat",  # Better support for Vietnamese than Llama 3
 )
 LLM_MAX_NEW_TOKENS = 256
 LLM_MAX_OUTPUT_TOKENS_EXTRACTION = 96
