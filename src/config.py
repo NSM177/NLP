@@ -97,7 +97,7 @@ AG_NEWS_URL = "https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/
 
 TRUST_DOMAINS = [
     # Vietnamese news sources
-    "tuoitree.vn",
+    "tuoitre.vn",
     "thanhnien.vn",
     "vnexpress.net",
     "dantri.com.vn",
