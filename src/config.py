@@ -29,7 +29,7 @@ TEST_CSV = os.path.join(DATA_DIR, "data_true_test.csv")
 # SLM model path (pre-trained checkpoint)
 MODEL_PATH = os.environ.get(
     "MRCD_MODEL_PATH",
-    "vinai/phobert-large",
+    "vinai/phobert-base",
 )
 
 # ============================================================
