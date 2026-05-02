@@ -42,7 +42,7 @@ from src.labels import generate_demo_label
 #         print(f" Error downloading corpus: {e}")
 #         return []
 
-import os
+
 import pandas as pd
 from src.config import VI_NEWS_CORPUS_PATH
 
@@ -61,15 +61,8 @@ def load_news_corpus(corpus_path: str = None) -> list:
     try:
         df = pd.read_csv(corpus_path)
         
-        # Xác định cột văn bản
-        if 'text' in df.columns:
-            text_series = df['text']
-        elif 'content' in df.columns:
-            text_series = df['content']
-        else:
-            print(" Error: CSV must contain 'text' or 'content' column.")
-            return []
-        
+        # ... (code xác định cột văn bản) ...
+
         # Chuyển sang string, thay thế NaN bằng chuỗi rỗng
         text_series = text_series.fillna('').astype(str)
         
