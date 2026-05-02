@@ -16,12 +16,12 @@ from src.retrieval.knowledge_retrieval import (
 )
 
 
-def query_wikipedia(entity: str, lang: str = "en", fetch_full: bool = False) -> str:
+def query_wikipedia(entity: str, lang: str = "vi", fetch_full: bool = False) -> str:
     """
     Truy vấn nội dung từ Wikipedia cho một thực thể.
     
     Flow triển khai:
-    1. Thiết lập ngôn ngữ truy vấn (mặc định là tiếng Anh "en").
+    1. Thiết lập ngôn ngữ truy vấn (mặc định là tiếng Việt "vi").
     2. Nếu fetch_full = True: Lấy toàn bộ nội dung trang bằng `wikipedia.page().content`.
     3. Ngược lại: Gọi hàm `wikipedia.summary` để lấy đoạn tóm tắt.
     4. Trả về nội dung đã lấy hoặc chuỗi "Not found" nếu có lỗi.
@@ -57,7 +57,7 @@ def extract_wiki_knowledge_from_entities(entities: list, fetch_full: bool = Fals
         else:
             continue
 
-        summ = query_wikipedia(ent_text, "en", fetch_full=fetch_full)
+        summ = query_wikipedia(ent_text, "vi", fetch_full=fetch_full)
         if "Not found" not in summ:
             res[ent_text] = summ
     return res

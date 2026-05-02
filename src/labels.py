@@ -1,7 +1,7 @@
 """
 Label management for MRCD Framework.
 
-- LLM classification: chỉ dùng "Real" / "Fake" → parse đơn giản
+- LLM classification: chỉ dùng "Thât" / "Giả" → parse đơn giản
 - Synonym labels: chỉ dùng để gán nhãn giả cho demonstrations (training task)
 """
 
@@ -13,8 +13,8 @@ import random
 # LLM Classification Labels (dùng trong prompt)
 # LLM chỉ được trả về 1 trong 2 giá trị này
 # ============================================================
-LLM_LABEL_REAL = "Real"
-LLM_LABEL_FAKE = "Fake"
+LLM_LABEL_REAL = "Thât"
+LLM_LABEL_FAKE = "Giả"
 
 # ============================================================
 # Synonym Labels (Vietnamese - CHỈ dùng cho gán nhãn giả demo)
@@ -108,17 +108,17 @@ def parse_llm_label(
     text = text.replace("```json", "").replace("```", "").strip()
 
     # Direct match
-    if "real" in text and "fake" not in text:
-        return (0, "Real") if return_matched_label else 0
-    if "fake" in text and "real" not in text:
-        return (1, "Fake") if return_matched_label else 1
+    if "thât" in text and "giả" not in text:
+        return (0, "Thât") if return_matched_label else 0
+    if "giả" in text and "thât" not in text:
+        return (1, "Giả") if return_matched_label else 1
 
     # First token match
     first_token = re.split(r"\s+|[,:;.!?]", text)[0].strip()
-    if first_token == "real":
-        return (0, "Real") if return_matched_label else 0
-    if first_token == "fake":
-        return (1, "Fake") if return_matched_label else 1
+    if first_token == "thât":
+        return (0, "Thât") if return_matched_label else 0
+    if first_token == "giả":
+        return (1, "Giả") if return_matched_label else 1
 
     # Default to fake
     return (default_fake, None) if return_matched_label else default_fake

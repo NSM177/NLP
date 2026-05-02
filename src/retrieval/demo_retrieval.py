@@ -10,39 +10,69 @@ import pandas as pd
 from ddgs import DDGS
 from rank_bm25 import BM25Okapi
 
-from src.config import AG_NEWS_URL
+from src.config import VI_NEWS_CORPUS_PATH
 from src.utils import clean_query, truncate_text, log_retrieval_to_csv
 from src.labels import generate_demo_label
 
 
-def load_news_corpus(url: str = AG_NEWS_URL) -> list:
-    """
-    Tải tập dữ liệu AG News và nạp vào danh sách các tài liệu văn bản.
+# def load_news_corpus(url: str = VI_NEWS_CORPUS_PATH) -> list:
+#     """
+#     Tải tập dữ liệu AG News và nạp vào danh sách các tài liệu văn bản.
     
      
-    1. Gửi yêu cầu GET để tải CSV từ URL.
-    2. Chuyển nội dung phản hồi thành luồng dữ liệu (StringIO).
-    3. Sử dụng pandas để đọc CSV với các cột: class, title, desc.
-    4. Gộp 'title' và 'desc' thành một chuỗi duy nhất cho mỗi dòng.
-    5. Trả về danh sách các văn bản đã gộp.
+#     1. Gửi yêu cầu GET để tải CSV từ URL.
+#     2. Chuyển nội dung phản hồi thành luồng dữ liệu (StringIO).
+#     3. Sử dụng pandas để đọc CSV với các cột: class, title, desc.
+#     4. Gộp 'title' và 'desc' thành một chuỗi duy nhất cho mỗi dòng.
+#     5. Trả về danh sách các văn bản đã gộp.
+#     """
+#     print(f" Downloading News Corpus from {url}...")
+#     try:
+#         response = requests.get(url)
+#         response.raise_for_status()
+
+#         csv_content = io.StringIO(response.text)
+#         df = pd.read_csv(csv_content, header=None, names=["class", "title", "desc"])
+#         corpus_texts = (df["title"] + " " + df["desc"]).tolist()
+
+#         print(f" Loaded {len(corpus_texts)} documents from AG News.")
+#         return corpus_texts
+#     except Exception as e:
+#         print(f" Error downloading corpus: {e}")
+#         return []
+
+import os
+import pandas as pd
+
+def load_news_corpus(corpus_path: str = None) -> list:
     """
-    print(f" Downloading News Corpus from {url}...")
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
+    Tải tập dữ liệu tin tức tiếng Việt từ file CSV.
+    File CSV phải có cột 'title' và 'content' (hoặc 'text').
+    """
+    if corpus_path is None:
+        corpus_path = VI_NEWS_CORPUS_PATH
 
-        csv_content = io.StringIO(response.text)
-        df = pd.read_csv(csv_content, header=None, names=["class", "title", "desc"])
-        corpus_texts = (df["title"] + " " + df["desc"]).tolist()
-
-        print(f" Loaded {len(corpus_texts)} documents from AG News.")
-        return corpus_texts
-    except Exception as e:
-        print(f" Error downloading corpus: {e}")
+    if not os.path.exists(corpus_path):
+        print(f" Warning: Corpus file not found at {corpus_path}. Using empty corpus.")
         return []
 
+    try:
+        df = pd.read_csv(corpus_path)
+        # Giả sử có cột 'title' và 'content'
+        if 'title' in df.columns and 'content' in df.columns:
+            corpus_texts = (df['title'] + " " + df['content']).tolist()
+        elif 'text' in df.columns:
+            corpus_texts = df['text'].tolist()
+        else:
+            print(" Error: CSV columns must include 'title' + 'content' or 'text'.")
+            return []
+        print(f" Loaded {len(corpus_texts)} documents from Vietnamese corpus.")
+        return corpus_texts
+    except Exception as e:
+        print(f" Error loading corpus: {e}")
+        return []
 
-def search_news(query: str, max_results: int = 10) -> list:
+def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
     """
     Tìm kiếm các đoạn tin tức mới nhất qua DuckDuckGo (backend Bing).
     
@@ -62,7 +92,7 @@ def search_news(query: str, max_results: int = 10) -> list:
         with DDGS(timeout=20) as ddgs:
             results_gen = ddgs.news(
                 query=query,
-                region="wt-wt",
+                region=region,
                 safesearch="off",
                 timelimit=None,
                 max_results=max_results,
