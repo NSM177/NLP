@@ -41,13 +41,13 @@ from src.labels import generate_demo_label
 #         print(f" Error downloading corpus: {e}")
 #         return []
 
-import os
 import pandas as pd
+from src.config import VI_NEWS_CORPUS_PATH   # thêm biến này vào config.py
 
 def load_news_corpus(corpus_path: str = None) -> list:
     """
     Tải tập dữ liệu tin tức tiếng Việt từ file CSV.
-    File CSV phải có cột 'title' và 'content' (hoặc 'text').
+    File CSV phải có cột 'text' (hoặc 'title' + 'content' tùy bạn).
     """
     if corpus_path is None:
         corpus_path = VI_NEWS_CORPUS_PATH
@@ -58,20 +58,19 @@ def load_news_corpus(corpus_path: str = None) -> list:
 
     try:
         df = pd.read_csv(corpus_path)
-        # Giả sử có cột 'title' và 'content'
-        if 'title' in df.columns and 'content' in df.columns:
-            corpus_texts = (df['title'] + " " + df['content']).tolist()
-        elif 'text' in df.columns:
+        # Giả sử CSV có cột 'text'
+        if 'text' in df.columns:
             corpus_texts = df['text'].tolist()
         else:
-            print(" Error: CSV columns must include 'title' + 'content' or 'text'.")
-            return []
+            # Nếu lưu nhiều cột, có thể kết hợp
+            corpus_texts = (df['title'].fillna('') + " " + df['content'].fillna('')).tolist()
         print(f" Loaded {len(corpus_texts)} documents from Vietnamese corpus.")
         return corpus_texts
     except Exception as e:
         print(f" Error loading corpus: {e}")
         return []
-
+    
+    
 def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
     """
     Tìm kiếm các đoạn tin tức mới nhất qua DuckDuckGo (backend Bing).

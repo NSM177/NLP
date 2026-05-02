@@ -94,8 +94,8 @@ WIKI_FETCH_FULL = os.environ.get("MRCD_WIKI_FETCH_FULL", "false").lower() == "tr
 # Retrieval Configuration
 # ============================================================
 # AG_NEWS_URL = "https://raw.githubusercontent.com/mhjabreel/CharCnn_Keras/master/data/ag_news_csv/train.csv"
-VI_NEWS_CORPUS_PATH = os.environ.get("VI_NEWS_CORPUS_PATH", "data/vietnamese_news_corpus.csv")
-
+# Đường dẫn đến file CSV corpus tiếng Việt
+VI_NEWS_CORPUS_PATH = os.environ.get("VI_NEWS_CORPUS_PATH", "/kaggle/working/vietnamese_news_corpus.csv")
 TRUST_DOMAINS = [
     # Vietnamese news sources
     "tuoitre.vn",
@@ -106,15 +106,7 @@ TRUST_DOMAINS = [
     "vietnamnet.vn",
     "vietq.vn",
     "baomoi.com",
-    # International sources
-    "apnews.com",
-    "reuters.com",
-    "afp.com",
-    "factcheck.org",
-    "snopes.com",
-    "fullfact.org",
-    "who.int",
-    "cdc.gov",
+
 ]
 
 # ============================================================
