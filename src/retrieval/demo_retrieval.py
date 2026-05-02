@@ -4,6 +4,7 @@ Bing News search + static AG News corpus + BM25 top-k selection.
 """
 
 import io
+import os
 
 import requests
 import pandas as pd
@@ -70,7 +71,7 @@ def load_news_corpus(corpus_path: str = None) -> list:
         print(f" Error loading corpus: {e}")
         return []
     
-    
+
 def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
     """
     Tìm kiếm các đoạn tin tức mới nhất qua DuckDuckGo (backend Bing).
