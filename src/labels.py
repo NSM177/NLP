@@ -1,7 +1,7 @@
 """
 Label management for MRCD Framework.
 
-- LLM classification: chỉ dùng "Thât" / "Giả" → parse đơn giản
+- LLM classification: chỉ dùng "Thật" / "Giả" → parse đơn giản
 - Synonym labels: chỉ dùng để gán nhãn giả cho demonstrations (training task)
 """
 
@@ -13,7 +13,7 @@ import random
 # LLM Classification Labels (dùng trong prompt)
 # LLM chỉ được trả về 1 trong 2 giá trị này
 # ============================================================
-LLM_LABEL_REAL = "Thât"
+LLM_LABEL_REAL = "Thật"
 LLM_LABEL_FAKE = "Giả"
 
 # ============================================================
@@ -108,15 +108,15 @@ def parse_llm_label(
     text = text.replace("```json", "").replace("```", "").strip()
 
     # Direct match
-    if "thât" in text and "giả" not in text:
-        return (0, "Thât") if return_matched_label else 0
-    if "giả" in text and "thât" not in text:
+    if "thật" in text and "giả" not in text:
+        return (0, "Thật") if return_matched_label else 0
+    if "giả" in text and "thật" not in text:
         return (1, "Giả") if return_matched_label else 1
 
     # First token match
     first_token = re.split(r"\s+|[,:;.!?]", text)[0].strip()
-    if first_token == "thât":
-        return (0, "Thât") if return_matched_label else 0
+    if first_token == "thật":
+        return (0, "Thật") if return_matched_label else 0
     if first_token == "giả":
         return (1, "Giả") if return_matched_label else 1
 
