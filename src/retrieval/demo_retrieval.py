@@ -42,13 +42,14 @@ from src.labels import generate_demo_label
 #         print(f" Error downloading corpus: {e}")
 #         return []
 
+import os
 import pandas as pd
-from src.config import VI_NEWS_CORPUS_PATH   # thêm biến này vào config.py
+from src.config import VI_NEWS_CORPUS_PATH
 
 def load_news_corpus(corpus_path: str = None) -> list:
     """
     Tải tập dữ liệu tin tức tiếng Việt từ file CSV.
-    File CSV phải có cột 'text' (hoặc 'title' + 'content' tùy bạn).
+    Đảm bảo tất cả các mục đều là chuỗi (string).
     """
     if corpus_path is None:
         corpus_path = VI_NEWS_CORPUS_PATH
@@ -59,18 +60,27 @@ def load_news_corpus(corpus_path: str = None) -> list:
 
     try:
         df = pd.read_csv(corpus_path)
-        # Giả sử CSV có cột 'text'
+        
+        # Xác định cột văn bản
         if 'text' in df.columns:
-            corpus_texts = df['text'].tolist()
+            text_series = df['text']
+        elif 'content' in df.columns:
+            text_series = df['content']
         else:
-            # Nếu lưu nhiều cột, có thể kết hợp
-            corpus_texts = (df['title'].fillna('') + " " + df['content'].fillna('')).tolist()
+            print(" Error: CSV must contain 'text' or 'content' column.")
+            return []
+        
+        # Chuyển sang string, thay thế NaN bằng chuỗi rỗng
+        text_series = text_series.fillna('').astype(str)
+        
+        # Loại bỏ các dòng rỗng (nếu muốn)
+        corpus_texts = [t.strip() for t in text_series.tolist() if t.strip()]
+        
         print(f" Loaded {len(corpus_texts)} documents from Vietnamese corpus.")
         return corpus_texts
     except Exception as e:
         print(f" Error loading corpus: {e}")
         return []
-    
 
 def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
     """
