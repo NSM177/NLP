@@ -46,7 +46,7 @@ from src.labels import generate_demo_label
 import pandas as pd
 from src.config import VI_NEWS_CORPUS_PATH
 
-def load_news_corpus(corpus_path: str = None, max_samples: int = 100000) -> list:
+def load_news_corpus(corpus_path: str = None, max_samples: int = 60000) -> list:
     """
     Tải tập dữ liệu tin tức tiếng Việt từ file CSV và lấy mẫu ngẫu nhiên.
     

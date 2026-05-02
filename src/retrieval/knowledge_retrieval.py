@@ -297,7 +297,7 @@ def get_fact_ranker() -> CrossEncoder:
     """
     global _fact_ranker
     if _fact_ranker is None:
-        _fact_ranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+        _fact_ranker = CrossEncoder("intfloat/multilingual-e5-small")
     return _fact_ranker
 
 

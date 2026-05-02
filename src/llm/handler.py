@@ -204,8 +204,8 @@ class LocalLLM(BaseLLM):
             # Tự động phát hiện số GPU
             num_gpus = torch.cuda.device_count()
             if num_gpus >= 2 and self.device_map == "balanced":
-                # Đặt max_memory cho mỗi GPU (ví dụ mỗi GPU dùng tối đa 12GB, chừa lại cho SLM)
-                max_memory = {i: "12GiB" for i in range(num_gpus)}
+                # Đặt max_memory cho mỗi GPU (ví dụ mỗi GPU dùng tối đa 16GB, chừa lại cho SLM)
+                max_memory = {i: "16GiB" for i in range(num_gpus)}
                 # Nếu cần, có thể chỉ định CPU offload
                 # max_memory["cpu"] = "20GiB"
                 print(f"Using {num_gpus} GPUs with max_memory {max_memory}")
@@ -222,7 +222,7 @@ class LocalLLM(BaseLLM):
             )
             self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
 
-            print(f"✅ Loaded LLM: {self.model_name} on device map: {self.model.hf_device_map}")
+            print(f" Loaded LLM: {self.model_name} on device map: {self.model.hf_device_map}")
         except Exception as e:
             self.model = None
             self.tokenizer = None

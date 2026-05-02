@@ -41,7 +41,7 @@ LLM_MODEL_NAME = os.environ.get(
 )
 LLM_MAX_NEW_TOKENS = 256
 LLM_MAX_OUTPUT_TOKENS_EXTRACTION = 96
-# LLM chỉ trả về "Real" hoặc "Fake" 
+# LLM chỉ trả về "Thật" hoặc "Giả"
 LLM_MAX_OUTPUT_TOKENS_CLASSIFICATION = 10
 LLM_TEMPERATURE = 0.0
 LLM_TOP_P = 1.0
@@ -75,7 +75,7 @@ SLM_FINETUNE_EPOCHS = 1
 SLM_FINETUNE_BATCH_SIZE = 32
 SLM_FINETUNE_LR = 1e-5
 SLM_FINETUNE_WEIGHT_DECAY = 0.01
-SLM_FINETUNE_MIN_SAMPLES = 10
+SLM_FINETUNE_MIN_SAMPLES = 16
 # Vietnamese text needs longer sequences due to morphological complexity
 SLM_MAX_SEQ_LENGTH = 256  # Increased from 128 for better Vietnamese text handling
 

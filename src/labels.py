@@ -55,13 +55,13 @@ def generate_demo_label(text: str = None) -> str:
 
 def to_clean_demo_label(binary_label: int) -> str:
     """
-    Chuyển đổi nhãn nhị phân sang chuỗi nhãn trực tiếp ("Real"/"Fake").
+    Chuyển đổi nhãn nhị phân sang chuỗi nhãn trực tiếp ("Thật"/"Giả").
     Sử dụng cho các ví dụ minh họa từ Round 2 trở đi (từ pool sạch D_clean).
     
      
     1. Chuyển đổi binary_label về kiểu số nguyên (int).
-    2. Nếu label = 0: Trả về "Real" (LLM_LABEL_REAL).
-    3. Nếu label = 1: Trả về "Fake" (LLM_LABEL_FAKE).
+    2. Nếu label = 0: Trả về "Thật" (LLM_LABEL_REAL).
+    3. Nếu label = 1: Trả về "Giả" (LLM_LABEL_FAKE).
     """
     if int(binary_label) == 0:
         return LLM_LABEL_REAL
@@ -70,7 +70,7 @@ def to_clean_demo_label(binary_label: int) -> str:
 
 
 # ============================================================
-# LLM Output Parsing (chỉ parse "Real" / "Fake")
+# LLM Output Parsing (chỉ parse "Thật" / "Giả")
 # ============================================================
 def _normalize_label_text(s: str) -> str:
     """
@@ -92,14 +92,14 @@ def parse_llm_label(
 ):
     """
     Phân tích phản hồi từ LLM thành nhãn nhị phân (0/1).
-    LLM chỉ trả về "Real" hoặc "Fake" -> parse đơn giản.
+    LLM chỉ trả về "Thật" hoặc "Giả" -> parse đơn giản.
     
      
     1. Chuẩn hóa chuỗi phản hồi bằng `_normalize_label_text`.
     2. Loại bỏ các ký tự bọc (fencing) markdown như code blocks (```json, ```).
     3. Kiểm tra khớp trực tiếp (Direct match):
-       - Nếu có 'real' và không có 'fake' -> Trả về 0 (Real).
-       - Nếu có 'fake' và không có 'real' -> Trả về 1 (Fake).
+       - Nếu có 'thật' và không có 'giả' -> Trả về 0 (Thật).
+       - Nếu có 'giả' và không có 'thật' -> Trả về 1 (Giả).
     4. Nếu khớp trực tiếp thất bại, thử khớp với token đầu tiên (First token match).
     5. Nếu vẫn không khớp, trả về giá trị mặc định (default_fake).
     6. Tùy theo `return_matched_label`, trả về số nguyên hoặc tuple kèm chuỗi nhãn.

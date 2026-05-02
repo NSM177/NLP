@@ -62,11 +62,11 @@ NỀN TẢNG THÔNG TIN:
 {knowledge_k}
 
 HƯỚNG DẪN:
-Phân loại bài viết tin tức dưới đây là Thật (Real) hoặc Giả (Fake).
-- "Real" nghĩa là bài viết chính xác về sự kiện và đáng tin cậy.
-- "Fake" nghĩa là bài viết giả mạo, gây hiểu lầm, hoặc chưa được xác minh.
+Phân loại bài viết tin tức dưới đây là Thật (Thật) hoặc Giả ('Giả').
+- "Thật" nghĩa là bài viết chính xác về sự kiện và đáng tin cậy.
+- "Giả" nghĩa là bài viết giả mạo, gây hiểu lầm, hoặc chưa được xác minh.
 
-QUY TẮC CỨNG: Chỉ viết MỘT từ: "Real" hoặc "Fake". 
+QUY TẮC CỨNG: Chỉ viết MỘT từ: "Thật" hoặc "Giả". 
 Không có giải thích, không có dấu câu.
 Chỉ viết từ đó.
 
