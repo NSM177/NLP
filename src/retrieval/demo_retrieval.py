@@ -46,10 +46,13 @@ from src.labels import generate_demo_label
 import pandas as pd
 from src.config import VI_NEWS_CORPUS_PATH
 
-def load_news_corpus(corpus_path: str = None) -> list:
+def load_news_corpus(corpus_path: str = None, max_samples: int = 100000) -> list:
     """
-    Tải tập dữ liệu tin tức tiếng Việt từ file CSV.
-    Đảm bảo tất cả các mục đều là chuỗi (string).
+    Tải tập dữ liệu tin tức tiếng Việt từ file CSV và lấy mẫu ngẫu nhiên.
+    
+    Args:
+        corpus_path: Đường dẫn đến file CSV.
+        max_samples: Số lượng mẫu tối đa cần lấy (mặc định 50000).
     """
     if corpus_path is None:
         corpus_path = VI_NEWS_CORPUS_PATH
@@ -61,12 +64,25 @@ def load_news_corpus(corpus_path: str = None) -> list:
     try:
         df = pd.read_csv(corpus_path)
         
-        # ... (code xác định cột văn bản) ...
-
+        # Xác định cột văn bản
+        if 'text' in df.columns:
+            text_series = df['text']
+        else:
+            print(" Error: CSV must contain 'text' column.")
+            return []
+        
+        # Lấy mẫu ngẫu nhiên nếu số lượng vượt quá max_samples
+        if len(df) > max_samples:
+            df_sample = df.sample(n=max_samples, random_state=42)
+            text_series = df_sample['text']
+            print(f" Sampled {max_samples} documents from {len(df)} total.")
+        else:
+            text_series = text_series
+        
         # Chuyển sang string, thay thế NaN bằng chuỗi rỗng
         text_series = text_series.fillna('').astype(str)
         
-        # Loại bỏ các dòng rỗng (nếu muốn)
+        # Loại bỏ các dòng rỗng
         corpus_texts = [t.strip() for t in text_series.tolist() if t.strip()]
         
         print(f" Loaded {len(corpus_texts)} documents from Vietnamese corpus.")
@@ -74,7 +90,6 @@ def load_news_corpus(corpus_path: str = None) -> list:
     except Exception as e:
         print(f" Error loading corpus: {e}")
         return []
-
 def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
     """
     Tìm kiếm các đoạn tin tức mới nhất qua DuckDuckGo (backend Bing).
