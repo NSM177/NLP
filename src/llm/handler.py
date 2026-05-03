@@ -206,7 +206,7 @@ class LocalLLM(BaseLLM):
             # Giảm max_memory mỗi GPU để chừa chỗ cho SLM và các tác vụ khác
             if num_gpus >= 2:
                 # Mỗi GPU dùng tối đa 14GB (tránh OOM)
-                max_memory = {i: "14GiB" for i in range(num_gpus)}
+                max_memory = {i: "12GiB" for i in range(num_gpus)}
                 print(f"Using {num_gpus} GPUs with max_memory {max_memory}")
             else:
                 max_memory = None
