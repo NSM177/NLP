@@ -18,3 +18,4 @@ python-dotenv
 requests
 huggingface-hub
 pyvi
+duckdb

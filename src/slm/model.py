@@ -188,8 +188,8 @@ class IntegratedSLM:
         clean_samples: list,
         epochs: int = 1,
         batch_size: int = 32,
-        lr: float = 1e-5,
-        weight_decay: float = 0.01,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-4,
     ) -> dict:
         """
         Fine-tune mô hình SLM (PhoBERT) trên tập dữ liệu sạch (D_clean).
