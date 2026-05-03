@@ -75,7 +75,7 @@ SLM_FINETUNE_EPOCHS = 1
 SLM_FINETUNE_BATCH_SIZE = 32
 SLM_FINETUNE_LR = 1e-5
 SLM_FINETUNE_WEIGHT_DECAY = 0.01
-SLM_FINETUNE_MIN_SAMPLES = 16
+SLM_FINETUNE_MIN_SAMPLES = 10
 # Vietnamese text needs longer sequences due to morphological complexity
 SLM_MAX_SEQ_LENGTH = 256  # Increased from 128 for better Vietnamese text handling
 
@@ -102,11 +102,11 @@ TRUST_DOMAINS = [
     "thanhnien.vn",
     "vnexpress.net",
     "dantri.com.vn",
-    "vov.vn",
+    "baochinhphu.vn",
     "vietnamnet.vn",
-    "vietq.vn",
+    "plo.vn",
     "baomoi.com",
-
+    "nld.vn",
 ]
 
 # ============================================================
