@@ -163,14 +163,14 @@ class LocalLLM(BaseLLM):
     Supports any causal LM (Llama, Qwen, Mistral, etc.)
     """
 
-    def __init__(self, model_name: str = None, use_4bit: bool = True, device_map: str = "balanced"):
+    def __init__(self, model_name: str = None, use_4bit: bool = True, device_map: str = "auto"):
         """
         Khởi tạo lớp LocalLLM.
 
         Args:
             model_name: Tên mô hình hoặc đường dẫn (nếu None thì dùng LLM_MODEL_NAME từ config).
             use_4bit: Nếu True, sử dụng lượng tử hóa 4-bit (giảm mạnh VRAM).
-            device_map: Chiến lược phân bổ device, ví dụ "auto", "balanced", "balanced_low_0".
+            device_map: Chiến lược phân bổ device, "auto" hoặc "balanced".
         """
         self.model_name = model_name or LLM_MODEL_NAME
         self.use_4bit = use_4bit
@@ -192,7 +192,7 @@ class LocalLLM(BaseLLM):
             if self.use_4bit:
                 bnb_config = BitsAndBytesConfig(
                     load_in_4bit=True,
-                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_use_double_quant=True,      # Sửa: nhận boolean
                     bnb_4bit_quant_type="nf4",
                     bnb_4bit_compute_dtype=torch.bfloat16,
                 )
@@ -201,13 +201,12 @@ class LocalLLM(BaseLLM):
                 bnb_config = None
                 print(f"Loading {self.model_name} without quantization...")
 
-            # Tự động phát hiện số GPU
+            # Tự động phát hiện số GPU và giới hạn bộ nhớ
             num_gpus = torch.cuda.device_count()
-            if num_gpus >= 2 and self.device_map == "balanced":
-                # Đặt max_memory cho mỗi GPU (ví dụ mỗi GPU dùng tối đa 16GB, chừa lại cho SLM)
-                max_memory = {i: "16GiB" for i in range(num_gpus)}
-                # Nếu cần, có thể chỉ định CPU offload
-                # max_memory["cpu"] = "20GiB"
+            # Giảm max_memory mỗi GPU để chừa chỗ cho SLM và các tác vụ khác
+            if num_gpus >= 2:
+                # Mỗi GPU dùng tối đa 14GB (tránh OOM)
+                max_memory = {i: "14GiB" for i in range(num_gpus)}
                 print(f"Using {num_gpus} GPUs with max_memory {max_memory}")
             else:
                 max_memory = None
@@ -221,7 +220,6 @@ class LocalLLM(BaseLLM):
                 low_cpu_mem_usage=True,
             )
             self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
-
             print(f" Loaded LLM: {self.model_name} on device map: {self.model.hf_device_map}")
         except Exception as e:
             self.model = None
@@ -271,7 +269,7 @@ class LocalLLM(BaseLLM):
 _current_llm = None
 
 
-def get_llm(model_name: str = None, use_4bit: bool = True, device_map: str = "balanced") -> BaseLLM:
+def get_llm(model_name: str = None, use_4bit: bool = True, device_map: str = "auto") -> BaseLLM:
     """
     Lấy hoặc tạo mới singleton Global LLM.
     """
