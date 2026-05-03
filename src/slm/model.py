@@ -39,6 +39,7 @@ class IntegratedSLM:
         """
         self.backend = backend or SLM_BACKEND
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._loaded_model_path = None
         
         # Nếu model_path không phải là đường dẫn có sẵn, dùng PhoBERT-base mặc định
         if not os.path.exists(model_path):
@@ -47,6 +48,8 @@ class IntegratedSLM:
         else:
             print(f"Loading SLM from {model_path}")
         
+        self._loaded_model_path = model_path
+
         if self.backend == "vllm":
             self._init_vllm(model_path)
         else:
@@ -64,6 +67,7 @@ class IntegratedSLM:
             eval_mode=True,
         )
         print(f"SLM loaded (HF backend with PhoBERT) on {self.device}")
+
 
     def _load_phobert_components(self, model_path: str, eval_mode: bool = True):
         """
@@ -250,7 +254,19 @@ class IntegratedSLM:
             "weight_decay": weight_decay,
             "avg_loss": avg_loss,
         }
+    def _freeze_backbone_train_head_only(self):
+        for param in self.model.parameters():
+            param.requires_grad = False
+        if hasattr(self.model, 'classifier'):
+            for param in self.model.classifier.parameters():
+                param.requires_grad = True
+        else:
+            raise AttributeError("Model does not expose 'classifier' head")
 
+    def _set_head_train_mode(self):
+        self.model.eval()
+        if hasattr(self.model, 'classifier'):
+            self.model.classifier.train()
     def finetune(
         self,
         train_texts: list[str],
@@ -258,43 +274,41 @@ class IntegratedSLM:
         model_init: str = "vinai/phobert-base",
         epochs: int = 4,
         batch_size: int = 32,
-        lr: float = 1e-5,
-        weight_decay: float = 0.01,
+        lr: float = 1e-3,           # tăng lr vì chỉ train head
+        weight_decay: float = 1e-4,  # giống RoBERTa
         warmup_ratio: float = 0.1,
         max_grad_norm: float = 1.0,
         save_path: str | None = None,
     ) -> dict:
-        """
-        Fine-tune PhoBERT từ pre-trained (giống notebook).
-        """
         if len(train_texts) != len(train_labels):
             raise ValueError("train_texts và train_labels phải cùng số lượng")
         if len(train_texts) == 0:
             return {"trained": False, "reason": "no_train_data"}
 
-        self.tokenizer, self.model = self._load_phobert_components(
-            model_path=model_init,
-            eval_mode=False,
-        )
-        self.model.train()
+        # Nếu model_init khác với model hiện tại, load lại từ pretrained
+        if self._loaded_model_path != model_init:
+            self.tokenizer, self.model = self._load_phobert_components(
+                model_path=model_init,
+                eval_mode=True,      # sẽ set eval, nhưng sau đó ta sẽ chỉ train head
+            )
+            self._loaded_model_path = model_init
+
+        # Freeze backbone, chỉ train head
+        self._freeze_backbone_train_head_only()
 
         train_dataset = FakeNewsDataset(train_texts, train_labels, self.tokenizer, max_len=128)
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
         total_steps = len(train_loader) * epochs
-        optimizer = AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
+        optimizer = AdamW(trainable_params, lr=lr, weight_decay=weight_decay)
         scheduler = get_linear_schedule_with_warmup(
             optimizer,
             num_warmup_steps=int(total_steps * warmup_ratio),
             num_training_steps=total_steps,
         )
 
-        if save_path:
-            os.makedirs(save_path, exist_ok=True)
-            best_model_path = os.path.join(save_path, "best_model.pt")
-        else:
-            best_model_path = "best_model_finetune.pt"
-
+        # Tính class weights (giống cũ)
         label_counts = torch.tensor(
             [
                 sum(1 for l in train_labels if l == 0),
@@ -302,17 +316,14 @@ class IntegratedSLM:
             ],
             dtype=torch.float,
         )
-        class_weights = (
-            label_counts.sum() / (2 * label_counts.clamp(min=1))
-        ).to(self.device)
+        class_weights = (label_counts.sum() / (2 * label_counts.clamp(min=1))).to(self.device)
         loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights)
 
         history = {"train_loss": []}
-        best_train_loss = float("inf")
 
         for epoch in range(epochs):
             epoch_loss = 0.0
-            self.model.train()
+            self._set_head_train_mode()   # backbone eval, head train
 
             for batch in train_loader:
                 input_ids = batch["input_ids"].to(self.device)
@@ -326,7 +337,7 @@ class IntegratedSLM:
                 )
                 loss = loss_fn(outputs.logits, labels_t)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+                torch.nn.utils.clip_grad_norm_(trainable_params, max_grad_norm)
                 optimizer.step()
                 scheduler.step()
 
@@ -335,14 +346,11 @@ class IntegratedSLM:
             avg_train_loss = epoch_loss / max(1, len(train_loader))
             history["train_loss"].append(avg_train_loss)
 
-            if avg_train_loss < best_train_loss:
-                best_train_loss = avg_train_loss
-                torch.save(self.model.state_dict(), best_model_path)
-
-        self.model.load_state_dict(torch.load(best_model_path, map_location=self.device))
+        # Sau khi train xong, đặt model về eval mode (bình thường)
         self.model.eval()
 
         if save_path:
+            os.makedirs(save_path, exist_ok=True)
             self.model.save_pretrained(save_path)
             self.tokenizer.save_pretrained(save_path)
 
@@ -350,6 +358,9 @@ class IntegratedSLM:
             "trained": True,
             "samples": len(train_texts),
             "epochs": epochs,
+            "batch_size": batch_size,
+            "lr": lr,
+            "weight_decay": weight_decay,
             "train_loss_history": history["train_loss"],
         }
         if save_path:
@@ -357,31 +368,12 @@ class IntegratedSLM:
 
         return result
 
-    def fnetune(
-        self,
-        train_texts: list[str],
-        train_labels: list[int],
-        model_init: str = "vinai/phobert-base",
-        epochs: int = 4,
-        batch_size: int = 32,
-        lr: float = 1e-5,
-        weight_decay: float = 0.01,
-        warmup_ratio: float = 0.1,
-        max_grad_norm: float = 1.0,
-        save_path: str | None = None,
-    ) -> dict:
-        """
-        Backward-compatible alias for `finetune()`.
-        """
+    def fnetune(self, train_texts, train_labels, model_init="vinai/phobert-base", 
+                epochs=4, batch_size=32, lr=1e-3, weight_decay=1e-4, 
+                warmup_ratio=0.1, max_grad_norm=1.0, save_path=None):
         return self.finetune(
-            train_texts=train_texts,
-            train_labels=train_labels,
-            model_init=model_init,
-            epochs=epochs,
-            batch_size=batch_size,
-            lr=lr,
-            weight_decay=weight_decay,
-            warmup_ratio=warmup_ratio,
-            max_grad_norm=max_grad_norm,
-            save_path=save_path,
+            train_texts=train_texts, train_labels=train_labels,
+            model_init=model_init, epochs=epochs, batch_size=batch_size,
+            lr=lr, weight_decay=weight_decay, warmup_ratio=warmup_ratio,
+            max_grad_norm=max_grad_norm, save_path=save_path
         )
