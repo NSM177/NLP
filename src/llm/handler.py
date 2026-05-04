@@ -136,6 +136,8 @@ class LocalLLM(BaseLLM):
         response = self.tokenizer.batch_decode(
             gen_only_ids, skip_special_tokens=True
         )[0]
+        
+        torch.cuda.empty_cache()
         return response.strip()
 
 

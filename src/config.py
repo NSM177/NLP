@@ -57,7 +57,7 @@ SLM_BACKEND = os.environ.get("SLM_BACKEND", "hf")
 # ============================================================
 CONFIDENCE_THRESHOLD = 0.8
 NUM_LOOP = 3
-TOP_K_DEMOS = 4
+TOP_K_DEMOS = 3
 FACT_TOP_K = 3
 
 # Bootstrap settings
