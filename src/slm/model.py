@@ -34,14 +34,10 @@ class IntegratedSLM:
     """
 
     def __init__(self, model_path: str = MODEL_PATH, backend: str = None):
-        """
-        Khởi tạo lớp IntegratedSLM để quản lý mô hình PhoBERT.
-        """
         self.backend = backend or SLM_BACKEND
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._loaded_model_path = None
         
-        # Nếu model_path không phải là đường dẫn có sẵn, dùng PhoBERT-base mặc định
         if not os.path.exists(model_path):
             print("Saved model not found. Using pre-trained PhoBERT base.")
             model_path = "vinai/phobert-base"
@@ -59,28 +55,13 @@ class IntegratedSLM:
     # HuggingFace Backend
     # ================================================================
     def _init_hf(self, model_path: str):
-        """
-        Khởi tạo mô hình sử dụng HuggingFace Transformers với PhoBERT.
-        """
         self.tokenizer, self.model = self._load_phobert_components(
             model_path=model_path,
             eval_mode=True,
         )
         print(f"SLM loaded (HF backend with PhoBERT) on {self.device}")
 
-
     def _load_phobert_components(self, model_path: str, eval_mode: bool = True):
-        """
-        Tải tokenizer và mô hình PhoBERT cho cả inference và fine-tune.
-
-        Args:
-            model_path: checkpoint local hoặc tên model trên HuggingFace Hub
-            eval_mode: nếu True thì đưa model về chế độ eval, ngược lại train
-
-        Returns:
-            tuple (tokenizer, model)
-        """
-        # PhoBERT yêu cầu use_fast=False và trust_remote_code=True (nếu cần)
         tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
         model = AutoModelForSequenceClassification.from_pretrained(
             model_path,
@@ -93,10 +74,10 @@ class IntegratedSLM:
             model.train()
         return tokenizer, model
 
+    # ================================================================
+    # Inference
+    # ================================================================
     def _inference_hf(self, text: str) -> tuple:
-        """
-        Thực hiện suy luận (inference) qua HuggingFace.
-        """
         clean_text = preprocess_text(text)
         inputs = self.tokenizer(
             clean_text,
@@ -115,12 +96,8 @@ class IntegratedSLM:
         return pred.item(), conf.item(), probs[0].cpu().numpy()
 
     def _inference_hf_batch(self, texts: list[str], batch_size: int = 32) -> list[tuple]:
-        """
-        Thực hiện suy luận theo lô (batch) qua HuggingFace.
-        """
         clean_texts = [preprocess_text(t) for t in texts]
         results = []
-
         self.model.eval()
         with torch.no_grad():
             for i in range(0, len(clean_texts), batch_size):
@@ -132,49 +109,16 @@ class IntegratedSLM:
                     truncation=True,
                     return_tensors="pt",
                 )
-                
                 outputs = self.model(
                     inputs["input_ids"].to(self.device),
                     inputs["attention_mask"].to(self.device),
                 )
                 probs = F.softmax(outputs.logits, dim=1)
                 conf, pred = torch.max(probs, dim=1)
-
                 for j in range(len(batch_texts)):
                     results.append((pred[j].item(), conf[j].item(), probs[j].cpu().numpy()))
-
         return results
 
-    # ================================================================
-    # vLLM Backend (giữ nguyên, nhưng vLLM không hỗ trợ PhoBERT phân loại)
-    # ================================================================
-    def _init_vllm(self, model_path: str):
-        """
-        Khởi tạo mô hình với vLLM (fallback về HF vì vLLM chủ yếu cho generative models).
-        """
-        try:
-            from vllm import LLM as VLLM_LLM
-        except ImportError:
-            raise ImportError(
-                "vLLM not installed. Install with: pip install vllm\n"
-                "Or set SLM_BACKEND=hf in .env"
-            )
-        
-        # vLLM không hỗ trợ trực tiếp classification, dùng HF thay thế
-        self.tokenizer, self.model = self._load_phobert_components(
-            model_path=model_path,
-            eval_mode=True,
-        )
-        self._vllm_model_path = model_path
-        print(f"SLM loaded (vLLM backend fallback to HF) on {self.device}")
-
-    def _inference_vllm(self, text: str) -> tuple:
-        """Fallback to HF inference."""
-        return self._inference_hf(text)
-
-    # ================================================================
-    # Public Interface
-    # ================================================================
     def inference(self, text: str) -> tuple:
         if self.backend == "vllm":
             return self._inference_vllm(text)
@@ -183,20 +127,126 @@ class IntegratedSLM:
     def inference_batch(self, texts: list[str], batch_size: int = 32) -> list[tuple]:
         return self._inference_hf_batch(texts, batch_size)
 
+    # ================================================================
+    # Full fine‑tuning (cả backbone + head)
+    # ================================================================
+    def finetune_full(
+        self,
+        train_texts: list[str],
+        train_labels: list[int],
+        epochs: int = 10,
+        batch_size: int = 32,
+        lr: float = 1e-5,
+        weight_decay: float = 0.01,
+        warmup_ratio: float = 0.1,
+        max_grad_norm: float = 1.0,
+        save_path: str | None = None,
+    ) -> dict:
+        """Full fine‑tune toàn bộ mô hình (PhoBERT backbone + classification head)."""
+        if len(train_texts) != len(train_labels):
+            raise ValueError("train_texts và train_labels phải cùng số lượng")
+        if len(train_texts) == 0:
+            return {"trained": False, "reason": "no_train_data"}
+
+        # Load model từ pretrained (hoặc checkpoint hiện tại)
+        self.tokenizer, self.model = self._load_phobert_components(
+            model_path=self._loaded_model_path,
+            eval_mode=False,      # train mode
+        )
+        self.model.train()
+
+        dataset = FakeNewsDataset(train_texts, train_labels, self.tokenizer, max_len=128)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+        total_steps = len(loader) * epochs
+        optimizer = AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=int(total_steps * warmup_ratio),
+            num_training_steps=total_steps,
+        )
+
+        label_counts = torch.tensor(
+            [
+                sum(1 for l in train_labels if l == 0),
+                sum(1 for l in train_labels if l == 1),
+            ],
+            dtype=torch.float,
+        )
+        class_weights = (label_counts.sum() / (2 * label_counts.clamp(min=1))).to(self.device)
+        loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights)
+
+        history = {"train_loss": []}
+
+        for epoch in range(epochs):
+            epoch_loss = 0.0
+            for batch in loader:
+                input_ids = batch["input_ids"].to(self.device)
+                attention_mask = batch["attention_mask"].to(self.device)
+                labels_t = batch["labels"].to(self.device)
+
+                optimizer.zero_grad()
+                outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
+                loss = loss_fn(outputs.logits, labels_t)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_grad_norm)
+                optimizer.step()
+                scheduler.step()
+
+                epoch_loss += float(loss.item())
+
+            avg_loss = epoch_loss / len(loader)
+            history["train_loss"].append(avg_loss)
+            print(f"[Full FT] Epoch {epoch+1}/{epochs} | Loss {avg_loss:.4f}")
+
+        self.model.eval()
+        if save_path:
+            os.makedirs(save_path, exist_ok=True)
+            self.model.save_pretrained(save_path)
+            self.tokenizer.save_pretrained(save_path)
+
+        return {
+            "trained": True,
+            "samples": len(train_texts),
+            "epochs": epochs,
+            "batch_size": batch_size,
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "train_loss_history": history["train_loss"],
+            "save_path": save_path,
+        }
+
+    # ================================================================
+    # Head‑only fine‑tuning (chỉ train classification head) – dùng trong MRCD
+    # ================================================================
+    def _freeze_backbone_train_head_only(self):
+        for param in self.model.parameters():
+            param.requires_grad = False
+        if hasattr(self.model, 'classifier'):
+            for param in self.model.classifier.parameters():
+                param.requires_grad = True
+        else:
+            raise AttributeError("Model does not expose 'classifier' head")
+
+    def _set_head_train_mode(self):
+        self.model.eval()
+        if hasattr(self.model, 'classifier'):
+            self.model.classifier.train()
+
     def finetune_on_clean(
         self,
         clean_samples: list,
-        epochs: int = 1,
+        epochs: int = 2,
         batch_size: int = 32,
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
     ) -> dict:
         """
-        Fine-tune mô hình SLM (PhoBERT) trên tập dữ liệu sạch (D_clean).
+        Chỉ train classification head trên tập D_clean (dùng trong MRCD).
+        Backbone PhoBERT được đóng băng hoàn toàn.
         """
         valid_samples = [
-            s
-            for s in clean_samples
+            s for s in clean_samples
             if s.get("text") is not None and s.get("label") in [0, 1]
         ]
         if not valid_samples:
@@ -205,10 +255,14 @@ class IntegratedSLM:
         texts = [preprocess_text(s["text"]) for s in valid_samples]
         labels = [int(s["label"]) for s in valid_samples]
 
+        # Đóng băng backbone, chỉ để head trainable
+        self._freeze_backbone_train_head_only()
+
         dataset = FakeNewsDataset(texts, labels, self.tokenizer, max_len=128)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-        optimizer = AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
+        optimizer = AdamW(trainable_params, lr=lr, weight_decay=weight_decay)
 
         label_counts = torch.tensor(
             [
@@ -220,24 +274,21 @@ class IntegratedSLM:
         class_weights = (label_counts.sum() / (2 * label_counts.clamp(min=1))).to(self.device)
         loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights)
 
-        self.model.train()
         total_loss = 0.0
         total_steps = 0
 
         for _ in range(epochs):
+            self._set_head_train_mode()   # backbone eval, head train
             for batch in loader:
                 input_ids = batch["input_ids"].to(self.device)
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels_t = batch["labels"].to(self.device)
 
                 optimizer.zero_grad()
-                outputs = self.model(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                )
+                outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
                 loss = loss_fn(outputs.logits, labels_t)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+                torch.nn.utils.clip_grad_norm_(trainable_params, 1.0)
                 optimizer.step()
 
                 total_loss += float(loss.item())
@@ -254,19 +305,10 @@ class IntegratedSLM:
             "weight_decay": weight_decay,
             "avg_loss": avg_loss,
         }
-    def _freeze_backbone_train_head_only(self):
-        for param in self.model.parameters():
-            param.requires_grad = False
-        if hasattr(self.model, 'classifier'):
-            for param in self.model.classifier.parameters():
-                param.requires_grad = True
-        else:
-            raise AttributeError("Model does not expose 'classifier' head")
 
-    def _set_head_train_mode(self):
-        self.model.eval()
-        if hasattr(self.model, 'classifier'):
-            self.model.classifier.train()
+    # ================================================================
+    # Legacy methods (giữ để tương thích)
+    # ================================================================
     def finetune(
         self,
         train_texts: list[str],
@@ -274,26 +316,26 @@ class IntegratedSLM:
         model_init: str = "vinai/phobert-base",
         epochs: int = 4,
         batch_size: int = 32,
-        lr: float = 1e-3,           # tăng lr vì chỉ train head
-        weight_decay: float = 1e-4,  # giống RoBERTa
+        lr: float = 1e-3,
+        weight_decay: float = 1e-4,
         warmup_ratio: float = 0.1,
         max_grad_norm: float = 1.0,
         save_path: str | None = None,
     ) -> dict:
+        """Head‑only fine‑tune (giống finetune_on_clean nhưng dùng cho initial training)."""
+        # Giống như code cũ của bạn
         if len(train_texts) != len(train_labels):
             raise ValueError("train_texts và train_labels phải cùng số lượng")
         if len(train_texts) == 0:
             return {"trained": False, "reason": "no_train_data"}
 
-        # Nếu model_init khác với model hiện tại, load lại từ pretrained
         if self._loaded_model_path != model_init:
             self.tokenizer, self.model = self._load_phobert_components(
                 model_path=model_init,
-                eval_mode=True,      # sẽ set eval, nhưng sau đó ta sẽ chỉ train head
+                eval_mode=True,
             )
             self._loaded_model_path = model_init
 
-        # Freeze backbone, chỉ train head
         self._freeze_backbone_train_head_only()
 
         train_dataset = FakeNewsDataset(train_texts, train_labels, self.tokenizer, max_len=128)
@@ -308,7 +350,6 @@ class IntegratedSLM:
             num_training_steps=total_steps,
         )
 
-        # Tính class weights (giống cũ)
         label_counts = torch.tensor(
             [
                 sum(1 for l in train_labels if l == 0),
@@ -323,18 +364,14 @@ class IntegratedSLM:
 
         for epoch in range(epochs):
             epoch_loss = 0.0
-            self._set_head_train_mode()   # backbone eval, head train
-
+            self._set_head_train_mode()
             for batch in train_loader:
                 input_ids = batch["input_ids"].to(self.device)
                 attention_mask = batch["attention_mask"].to(self.device)
                 labels_t = batch["labels"].to(self.device)
 
                 optimizer.zero_grad()
-                outputs = self.model(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                )
+                outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
                 loss = loss_fn(outputs.logits, labels_t)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(trainable_params, max_grad_norm)
@@ -346,9 +383,7 @@ class IntegratedSLM:
             avg_train_loss = epoch_loss / max(1, len(train_loader))
             history["train_loss"].append(avg_train_loss)
 
-        # Sau khi train xong, đặt model về eval mode (bình thường)
         self.model.eval()
-
         if save_path:
             os.makedirs(save_path, exist_ok=True)
             self.model.save_pretrained(save_path)
@@ -365,7 +400,6 @@ class IntegratedSLM:
         }
         if save_path:
             result["save_path"] = save_path
-
         return result
 
     def fnetune(self, train_texts, train_labels, model_init="vinai/phobert-base", 
@@ -377,3 +411,19 @@ class IntegratedSLM:
             lr=lr, weight_decay=weight_decay, warmup_ratio=warmup_ratio,
             max_grad_norm=max_grad_norm, save_path=save_path
         )
+
+    # vLLM backend (giữ nguyên)
+    def _init_vllm(self, model_path: str):
+        try:
+            from vllm import LLM as VLLM_LLM
+        except ImportError:
+            raise ImportError("vLLM not installed. Install with: pip install vllm")
+        self.tokenizer, self.model = self._load_phobert_components(
+            model_path=model_path,
+            eval_mode=True,
+        )
+        self._vllm_model_path = model_path
+        print(f"SLM loaded (vLLM backend fallback to HF) on {self.device}")
+
+    def _inference_vllm(self, text: str) -> tuple:
+        return self._inference_hf(text)
