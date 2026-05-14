@@ -70,22 +70,127 @@ def load_news_corpus(corpus_path=None, max_samples=60000):
     except Exception as e:
         print(f" Error: {e}")
         return []   
-def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
-    """
-    Tìm kiếm các đoạn tin tức mới nhất qua DuckDuckGo (backend Bing).
+# def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
+#     """
+#     Tìm kiếm các đoạn tin tức mới nhất qua DuckDuckGo (backend Bing).
     
      
-    1. Làm sạch (clean) và cắt ngắn (truncate) truy vấn đầu vào.
-    2. Khởi tạo DuckDuckGo Search với timeout.
-    3. Gọi API tìm kiếm news với các tham số: region, safesearch, backend="bing".
-    4. Lặp qua các kết quả để lấy 'title' và 'body'.
-    5. Ghi nhật ký (log) thông tin tìm kiếm vào file CSV.
-    6. Trả về danh sách các đoạn văn bản tin tức.
+#     1. Làm sạch (clean) và cắt ngắn (truncate) truy vấn đầu vào.
+#     2. Khởi tạo DuckDuckGo Search với timeout.
+#     3. Gọi API tìm kiếm news với các tham số: region, safesearch, backend="bing".
+#     4. Lặp qua các kết quả để lấy 'title' và 'body'.
+#     5. Ghi nhật ký (log) thông tin tìm kiếm vào file CSV.
+#     6. Trả về danh sách các đoạn văn bản tin tức.
+#     """
+#     query = clean_query(query)
+#     query = truncate_text(query, max_length=50)
+
+#     news_items = []
+#     try:
+#         with DDGS(timeout=20) as ddgs:
+#             results_gen = ddgs.news(
+#                 query=query,
+#                 region=region,
+#                 safesearch="off",
+#                 timelimit=None,
+#                 max_results=max_results,
+#                 backend="bing",
+#             )
+
+#             for i, result in enumerate(results_gen):
+#                 if i >= max_results:
+#                     break
+
+#                 title = result.get("title", "")
+#                 body = result.get("body", "")
+#                 news_items.append(f"{title}\n{body}")
+#                 url = result.get("url", result.get("href", ""))
+#                 log_retrieval_to_csv("search_news", query, title, url, body)
+#     except Exception:
+#         pass
+#     return news_items
+import requests
+from ddgs import DDGS
+
+from src.config import (
+    SEARCH_PROVIDER,
+    SERPAPI_KEY,
+    SEARCH_REGION,
+    SEARCH_LANG,
+)
+from src.utils import clean_query, truncate_text, log_retrieval_to_csv
+
+
+def search_news_serpapi(query: str, max_results: int = 10) -> list:
+    """
+    Search news bằng SerpAPI Google News.
+    Dùng cho MRCD demonstration retrieval thay cho DDGS backend.
+    """
+    if not SERPAPI_KEY:
+        print("SERPAPI_KEY is missing. Fallback to DDGS.")
+        return search_news_ddgs(query, max_results=max_results)
+
+    query = clean_query(query)
+    query = truncate_text(query, max_length=120)
+
+    url = "https://serpapi.com/search.json"
+    params = {
+        "engine": "google_news",
+        "q": query,
+        "api_key": SERPAPI_KEY,
+        "gl": SEARCH_REGION,
+        "hl": SEARCH_LANG,
+        "num": max_results,
+    }
+
+    news_items = []
+
+    try:
+        response = requests.get(url, params=params, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+
+        results = data.get("news_results", [])
+
+        for result in results[:max_results]:
+            title = result.get("title", "")
+            snippet = result.get("snippet", "")
+            link = result.get("link", "")
+            source = result.get("source", "")
+
+            text = f"{title}\n{snippet}".strip()
+
+            if text:
+                news_items.append(text)
+                log_retrieval_to_csv(
+                    "search_news_serpapi",
+                    query,
+                    title,
+                    link,
+                    f"{source} | {snippet}",
+                )
+
+    except Exception as e:
+        print(f"SerpAPI search error: {e}")
+        return search_news_ddgs(query, max_results=max_results)
+
+    return news_items
+
+
+def search_news_ddgs(
+    query: str,
+    max_results: int = 10,
+    region: str = "vn-vi",
+) -> list:
+    """
+    Fallback: DuckDuckGo/DDGS news search.
+    Dùng khi không có SERPAPI_KEY hoặc SerpAPI lỗi.
     """
     query = clean_query(query)
     query = truncate_text(query, max_length=50)
 
     news_items = []
+
     try:
         with DDGS(timeout=20) as ddgs:
             results_gen = ddgs.news(
@@ -103,13 +208,43 @@ def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> lis
 
                 title = result.get("title", "")
                 body = result.get("body", "")
-                news_items.append(f"{title}\n{body}")
                 url = result.get("url", result.get("href", ""))
-                log_retrieval_to_csv("search_news", query, title, url, body)
-    except Exception:
-        pass
+
+                text = f"{title}\n{body}".strip()
+
+                if text:
+                    news_items.append(text)
+                    log_retrieval_to_csv(
+                        "search_news_ddgs",
+                        query,
+                        title,
+                        url,
+                        body,
+                    )
+
+    except Exception as e:
+        print(f"DDGS search error: {e}")
+
     return news_items
 
+
+def search_news(query: str, max_results: int = 10, region: str = "vn-vi") -> list:
+    """
+    Hàm search chính cho MRCD.
+
+    Nếu MRCD_SEARCH_PROVIDER=serpapi:
+        dùng SerpAPI Google News
+    Nếu MRCD_SEARCH_PROVIDER=ddgs:
+        dùng DuckDuckGo/DDGS fallback
+    """
+    if SEARCH_PROVIDER == "serpapi":
+        return search_news_serpapi(query, max_results=max_results)
+
+    return search_news_ddgs(
+        query=query,
+        max_results=max_results,
+        region=region,
+    )
 
 def retrieve_demonstrations(query: str, corpus_items: list, k: int = 4) -> list:
     """

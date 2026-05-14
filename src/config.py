@@ -45,7 +45,13 @@ LLM_MAX_OUTPUT_TOKENS_EXTRACTION = 96
 LLM_MAX_OUTPUT_TOKENS_CLASSIFICATION = 10
 LLM_TEMPERATURE = 0.0
 LLM_TOP_P = 1.0
-
+# ============================================================
+# Search Engine Configuration
+# ============================================================
+SEARCH_PROVIDER = os.environ.get("MRCD_SEARCH_PROVIDER", "serpapi").lower()
+SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
+SEARCH_REGION = os.environ.get("MRCD_SEARCH_REGION", "vn")
+SEARCH_LANG = os.environ.get("MRCD_SEARCH_LANG", "vi")
 # ============================================================
 # SLM Backend Configuration
 # ============================================================
